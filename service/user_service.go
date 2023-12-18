@@ -12,7 +12,7 @@ import (
 
 type IUserService interface {
 	Login(name, number string) (*model.User, error)
-	AddUser(user *model.User) (bool, error)
+	AddUser(user *model.User) (*dto.UserInfoDto, error)
 	GetUserInfo(id string) (userInfo *dto.UserInfoDto, err error)
 	GetUserInfos(id string) (userInfo *model.User, err error)
 	GetUserPageList(pageNum, pageSize int, name, number string) (u *dto.UserPageList, err error)
@@ -36,20 +36,27 @@ func (u UserService) Login(name, number string) (*model.User, error) {
 
 }
 
-func (u UserService) AddUser(user *model.User) (bool, error) {
+func (u UserService) AddUser(user *model.User) (*dto.UserInfoDto, error) {
 	// 是否存在的user
 	var isExistUser model.User
+
+	var userInfo dto.UserInfoDto
 	// 判断
 	u.DB.Where("number = ? OR name= ?", user.Number, user.Name).First(&isExistUser)
 	if isExistUser.Id != 0 {
-		return false, errors.New("手机号或者用户名已存在")
+		return &dto.UserInfoDto{}, errors.New("手机号或者用户名已存在")
 	}
 	// 不存在用户,新增
 	err := u.DB.Debug().Create(user).Error
 	if err != nil {
-		return false, err
+		return &dto.UserInfoDto{}, err
 	}
-	return true, nil
+	err = copier.Copy(&userInfo, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &userInfo, nil
 
 }
 

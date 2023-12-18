@@ -76,6 +76,8 @@ func (u UserController) Register(ctx *gin.Context) {
 	var user model.User
 	ctx.Bind(&user)
 
+	// 注册的用户设置为普通角色
+	user.Role = strconv.Itoa(1)
 	fmt.Println(user)
 
 	// 数据验证
@@ -89,12 +91,12 @@ func (u UserController) Register(ctx *gin.Context) {
 	}
 
 	// 判断手机号或者用户名是否存在
-	result, err := u.UserService.AddUser(&user)
-	if !result {
+	userInfo, err := u.UserService.AddUser(&user)
+	if err != nil {
 		response.Fail(ctx, err.Error(), nil)
 		return
 	}
-	response.Success(ctx, gin.H{"user": user}, "注册成功！")
+	response.Success(ctx, gin.H{"user": userInfo}, "注册成功！")
 
 }
 
