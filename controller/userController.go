@@ -77,7 +77,9 @@ func (u UserController) Register(ctx *gin.Context) {
 	ctx.Bind(&user)
 
 	// 注册的用户设置为普通角色
-	user.Role = strconv.Itoa(1)
+	if user.Role == "" {
+		user.Role = strconv.Itoa(1)
+	}
 	fmt.Println(user)
 
 	// 数据验证
@@ -119,18 +121,11 @@ type UserInquire struct {
 // UserList 获取用户信息列表
 func (u UserController) UserList(ctx *gin.Context) {
 	// 查询参数
-	var userInquire UserInquire
-	if err := ctx.ShouldBindJSON(&userInquire); err != nil {
-		response.Fail(ctx, err.Error(), nil)
-		return
-	}
-
 	// 获取分页参数
 	pageNum, _ := strconv.Atoi(ctx.DefaultQuery("pageNum", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "3"))
-
-	name := userInquire.Name
-	number := userInquire.Number
+	name := ctx.DefaultQuery("name", "")
+	number := ctx.DefaultQuery("number", "")
 
 	userList, err := u.UserService.GetUserPageList(pageNum, pageSize, name, number)
 	if err != nil {
@@ -170,7 +165,7 @@ func (u UserController) GetUserInfoById(ctx *gin.Context) {
 		response.Fail(ctx, "查询失败!", gin.H{"error": "无效的id"})
 		return
 	}
-	userInfo, err := u.UserService.GetUserInfo(id)
+	userInfo, err := u.UserService.GetUserInfos(id)
 	if err != nil {
 		response.Fail(ctx, err.Error(), gin.H{
 			"error": "查询失败",
@@ -183,29 +178,37 @@ func (u UserController) GetUserInfoById(ctx *gin.Context) {
 
 }
 
-func (u UserController) UpdateUser(ctx *gin.Context) {
-	var updatedUserInfo *model.User
-	if err := ctx.ShouldBindJSON(&updatedUserInfo); err != nil {
-		response.Fail(ctx, err.Error(), nil)
-		return
+func (u UserController) AddUser(ctx *gin.Context) {
+	var user model.User
+	ctx.ShouldBind(&user)
+
+	// 注册的用户设置为普通角色
+	if user.Role == "" {
+		user.Role = strconv.Itoa(1)
 	}
+	fmt.Println(user)
+
 	// 数据验证
-	if len(updatedUserInfo.Number) != 11 {
+	if len(user.Number) != 11 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "手机号必须为11位")
 		return
 	}
-	if len(updatedUserInfo.Password) < 6 && len(updatedUserInfo.Password) > 12 {
+	if len(user.Password) < 6 && len(user.Password) > 12 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "密码不能少于6位且大于12位")
 		return
 	}
 
 	// 判断手机号或者用户名是否存在
-	result, err := u.UserService.IsExistUser(updatedUserInfo)
-	if !result {
+	userInfo, err := u.UserService.AddUser(&user)
+	if err != nil {
 		response.Fail(ctx, err.Error(), nil)
 		return
 	}
+	response.Success(ctx, gin.H{"user": userInfo}, "注册成功！")
 
+}
+
+func (u UserController) UpdateUser(ctx *gin.Context) {
 	// 查询数据库内的用户数据
 	id, ok := ctx.Params.Get("id")
 	if !ok {
@@ -219,12 +222,12 @@ func (u UserController) UpdateUser(ctx *gin.Context) {
 		})
 		return
 	}
-	if updatedUserInfo.Name == "" {
-		updatedUserInfo.Name = userInfo.Name
+	var updatedUserInfo *dto.UpdateUser
+	if err := ctx.ShouldBindJSON(&updatedUserInfo); err != nil {
+		response.Fail(ctx, err.Error(), nil)
+		return
 	}
-	if updatedUserInfo.Number == "" {
-		updatedUserInfo.Number = userInfo.Number
-	}
+
 	if updatedUserInfo.Password == "" {
 		updatedUserInfo.Password = userInfo.Password
 	}

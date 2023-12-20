@@ -17,7 +17,7 @@ type IUserService interface {
 	GetUserInfos(id string) (userInfo *model.User, err error)
 	GetUserPageList(pageNum, pageSize int, name, number string) (u *dto.UserPageList, err error)
 	DeleteUser(id string) error
-	UpdateUser(id string, user *model.User) error
+	UpdateUser(id string, updateUser *dto.UpdateUser) error
 	IsExistUser(user *model.User) (bool, error)
 }
 
@@ -96,25 +96,28 @@ func (u UserService) GetUserInfos(id string) (userInfo *model.User, err error) {
 }
 
 func (u UserService) GetUserPageList(pageNum, pageSize int, name, number string) (userPageList *dto.UserPageList, err error) {
-	var userList *[]model.User
+	var userList []model.User
 	var total int64
 
 	query := u.DB.Offset((pageNum - 1) * pageSize).Limit(pageSize)
-
+	querys := u.DB
 	// 构建查询条件
 	if name != "" && number != "" {
 		query = query.Where("name LIKE ? AND number LIKE ?", "%"+name+"%", "%"+number+"%")
+		querys = querys.Where("name LIKE ? AND number LIKE ?", "%"+name+"%", "%"+number+"%")
 	} else if name != "" {
 		query = query.Where("name LIKE ?", "%"+name+"%")
+		querys = querys.Where("name LIKE ?", "%"+name+"%")
 	} else if number != "" {
 		query = query.Where("number LIKE ?", "%"+number+"%")
+		querys = querys.Where("number LIKE ?", "%"+number+"%")
 	}
 
 	if err = query.Find(&userList).Error; err != nil {
 		return &dto.UserPageList{}, err
 	}
 
-	userInfoList := make([]*dto.UserInfoDto, len(*userList))
+	userInfoList := make([]*dto.UserInfoDto, len(userList))
 
 	// 复制
 
@@ -124,7 +127,7 @@ func (u UserService) GetUserPageList(pageNum, pageSize int, name, number string)
 		return &dto.UserPageList{}, err
 	}
 	// 查询查询结果的总数
-	query.Find(&userList).Count(&total)
+	querys.Model(&model.User{}).Count(&total)
 
 	return &dto.UserPageList{
 		UserInfoDtoList: userInfoList,
@@ -139,14 +142,12 @@ func (u UserService) DeleteUser(id string) error {
 	return nil
 }
 
-func (u UserService) UpdateUser(id string, user *model.User) error {
-	err := u.DB.Model(&user).Where("id = ?", id).Updates(model.User{
-		Name:     user.Name,
-		Password: user.Password,
-		Number:   user.Number,
-		Address:  user.Address,
-		Tag:      user.Tag,
-		Role:     user.Role,
+func (u UserService) UpdateUser(id string, updateUser *dto.UpdateUser) error {
+	err := u.DB.Model(model.User{}).Where("id = ?", id).Updates(model.User{
+		Password: updateUser.Password,
+		Address:  updateUser.Address,
+		Tag:      updateUser.Tag,
+		Role:     updateUser.Role,
 	}).Error
 	if err != nil {
 		return err

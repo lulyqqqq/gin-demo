@@ -27,7 +27,7 @@ func SetupRouter(r *gin.Engine) *gin.Engine {
 		userRouters.GET("/info", userController.UserInfo)
 		userRouters.GET("/:id", userController.GetUserInfoById)
 		// 增加用户
-		userRouters.POST("/add", userController.Register)
+		userRouters.POST("/add", userController.AddUser)
 		// 删除用户
 		userRouters.DELETE("/:id", userController.DeleteUser)
 		// 修改用户信息
